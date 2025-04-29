@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>575</width>
+    <height>267</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QFormLayout" name="formLayout">
+    <item row="0" column="0">
+     <widget class="QLabel" name="label">
+      <property name="text">
+       <string>IntegerLineEdit</string>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="1">
+     <widget class="IntegerLineEdit" name="IntegerLineEdit1"/>
+    </item>
+    <item row="1" column="0">
+     <widget class="QLabel" name="label_2">
+      <property name="text">
+       <string>DecimalLineEdit</string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="1">
+     <widget class="DecimalLineEdit" name="lineEdit"/>
+    </item>
+    <item row="2" column="0">
+     <widget class="QLabel" name="label_3">
+      <property name="text">
+       <string>NumAlphabetLineEdit</string>
+      </property>
+     </widget>
+    </item>
+    <item row="2" column="1">
+     <widget class="NumAlphabetLineEdit" name="lineEdit_2"/>
+    </item>
+    <item row="3" column="0">
+     <widget class="QLabel" name="label_4">
+      <property name="text">
+       <string>Ipv4LineEdit</string>
+      </property>
+     </widget>
+    </item>
+    <item row="3" column="1">
+     <widget class="Ipv4LineEdit" name="lineEdit_3"/>
+    </item>
+    <item row="4" column="0">
+     <widget class="QLabel" name="label_5">
+      <property name="text">
+       <string>NetPortLineEdit</string>
+      </property>
+     </widget>
+    </item>
+    <item row="4" column="1">
+     <widget class="NetPortLineEdit" name="lineEdit_4"/>
+    </item>
+    <item row="5" column="0">
+     <widget class="QLabel" name="label_6">
+      <property name="text">
+       <string>MacLineEdit</string>
+      </property>
+     </widget>
+    </item>
+    <item row="5" column="1">
+     <widget class="MacLineEdit" name="lineEdit_5"/>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>575</width>
+     <height>20</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>IntegerLineEdit</class>
+   <extends>QLineEdit</extends>
+   <header location="global">libqt/ui/lineedit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>DecimalLineEdit</class>
+   <extends>QLineEdit</extends>
+   <header location="global">libqt/ui/lineedit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>NumAlphabetLineEdit</class>
+   <extends>QLineEdit</extends>
+   <header location="global">libqt/ui/lineedit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>Ipv4LineEdit</class>
+   <extends>QLineEdit</extends>
+   <header location="global">libqt/ui/lineedit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>NetPortLineEdit</class>
+   <extends>QLineEdit</extends>
+   <header location="global">libqt/ui/lineedit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>MacLineEdit</class>
+   <extends>QLineEdit</extends>
+   <header location="global">libqt/ui/lineedit.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>
