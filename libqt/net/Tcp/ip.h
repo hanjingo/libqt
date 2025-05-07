@@ -7,7 +7,7 @@
 class IPv4
 {
 public:
-    static bool check(const QString& strIP);
+    static bool isValid(const QString& ip);
 };
 
 #endif
