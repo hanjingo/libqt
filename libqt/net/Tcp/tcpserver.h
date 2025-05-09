@@ -3,33 +3,41 @@
 
 #include <QTcpServer>
 #include <QSet>
+#include <QReadWriteLock>
+#include <QThreadPool>
 
-#include "tcpsocket.h"
+#include "tcpconn.h"
 
 class TcpServer : public QTcpServer
 {
     Q_OBJECT
 
 public:
-    explicit TcpServer(QObject *parent = nullptr);
+    explicit TcpServer(QThreadPool* pool = nullptr, QObject *parent = nullptr);
 
-    inline void setSocketReadBufSz(const int sz) { m_rBufSz = sz; }
-    inline void setSocketWriteBufSz(const int sz) { m_wBufSz = sz; }
-    inline QSet<TcpSocket*> socks() { return m_socks; }
-    virtual QTcpSocket *nextPendingConnection() override;
+    inline void setConnReadBufSz(const int sz) { m_rBufSz = sz; }
+    inline void setConnWriteBufSz(const int sz) { m_wBufSz = sz; }
+    inline QSet<TcpConn*> conns() { return m_conns; }
+
+    void loop();
+
+private:
+    void init();
 
 signals:
-    void sockReaded(TcpSocket*);
-    void sockWrited(TcpSocket*);
+    void connReaded(TcpConn*);
+    void connWrited(TcpConn*);
 
 private slots:
     void onNewConnection();
     void onSocketDisconnected();
 
 private:
-    QSet<TcpSocket*> m_socks;
-    int m_rBufSz = 1;
-    int m_wBufSz = 1;
+    QReadWriteLock      m_lock;
+    QSet<TcpConn*>      m_conns;
+    QThreadPool*        m_threads;
+    int                 m_rBufSz;
+    int                 m_wBufSz;
 };
 
 #endif

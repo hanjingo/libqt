@@ -10,4 +10,10 @@ public:
     static bool isValid(const QString& ip);
 };
 
+class IPv6
+{
+public:
+
+};
+
 #endif

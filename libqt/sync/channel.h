@@ -10,55 +10,29 @@ template <typename T>
 class Channel
 {
 public:
-    Channel(const int sz = 1) : m_data{}, m_sem{sz}, m_bClosed{0}
+    Channel(const int sz = 1) : m_data{}, m_sem{sz}, m_capa{sz}
     {
         m_data.reserve(sz);
         for (auto i = 0; i < sz; ++i)
             m_sem.acquire(1);
     }
     ~Channel()
-    {
-    }
+    {}
 
-    inline Channel& operator>>(T& t)
-    {
-        dequeue(t);
-        return *this;
-    }
-
-    inline Channel& operator<<(const T& t)
-    {
-        enqueue(t);
-        return *this;
-    }
-
-    inline bool isClosed() { return m_bClosed.load() == 1; }
-
-    void close()
-    {
-        if (m_bClosed.load() == 1)
-            return;
-
-        m_bClosed.store(1);
-    }
+    inline Channel& operator>>(T& t) { dequeue(t); return *this; }
+    inline Channel& operator<<(const T& t) { enqueue(t); return *this; }
+    inline int available() { return m_sem.available(); }
+    inline int capa() { return m_capa; }
 
     bool enqueue(const T& t)
     {
-        qDebug() << "enqueue start";
-        if (isClosed())
-            return false;
-
         m_sem.release(1);
         m_data.enqueue(t);
-        qDebug() << "enqueue end";
         return true;
     }
 
     bool dequeue(T& t)
     {
-        if (isClosed())
-            return false;
-
         m_sem.acquire(1);
         t = m_data.dequeue();
         return true;
@@ -66,26 +40,36 @@ public:
 
     bool tryDequeue(T& t)
     {
-        if (isClosed() || !m_sem.tryAcquire(1))
+        if (!m_sem.tryAcquire(1))
             return false;
 
         t = m_data.dequeue();
         return true;
     }
 
-    bool tryDequeue(T& t, const int usec)
+    bool tryDequeue(T& t, const int ms)
     {
-        if (isClosed() || !m_sem.tryAcquire(1, usec))
+        if (!m_sem.tryAcquire(1, ms))
             return false;
 
         t = m_data.dequeue();
         return true;
+    }
+
+    void clear()
+    {
+        for (int i = 0; i < m_capa; ++i)
+        {
+            if (!m_sem.tryAcquire(1))
+                return;
+            m_data.dequeue();
+        }
     }
 
 private:
-    QAtomicInteger<quint8> m_bClosed;
     QQueue<T>              m_data;
     QSemaphore             m_sem;
+    int                    m_capa;
 };
 
 #endif

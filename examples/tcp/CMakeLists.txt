@@ -19,14 +19,18 @@ set(PROJECT_SOURCES
         main.cpp
         handler.h
         handler.cpp
+        ${LIBQT_ROOT}/libqt/net/proto/message.h
+        ${LIBQT_ROOT}/libqt/net/proto/message_v1.h
         ${LIBQT_ROOT}/libqt/net/tcp/ip.h
         ${LIBQT_ROOT}/libqt/net/tcp/ip.cpp
-        ${LIBQT_ROOT}/libqt/net/tcp/tcpsocket.h
-        ${LIBQT_ROOT}/libqt/net/tcp/tcpsocket.cpp
+        ${LIBQT_ROOT}/libqt/net/tcp/tcpconn.h
+        ${LIBQT_ROOT}/libqt/net/tcp/tcpconn.cpp
         ${LIBQT_ROOT}/libqt/net/tcp/tcpserver.h
         ${LIBQT_ROOT}/libqt/net/tcp/tcpserver.cpp
         ${LIBQT_ROOT}/libqt/sync/channel.h
-        ${LIBQT_ROOT}/libqt/sync/channel.cpp
+        ${LIBQT_ROOT}/libqt/sync/rwlocker.h
+        ${LIBQT_ROOT}/libqt/crypto/crc.h
+        ${LIBQT_ROOT}/libqt/crypto/crc.cpp
 )
 
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})

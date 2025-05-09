@@ -1,38 +1,56 @@
 #include "tcpserver.h"
 
-TcpServer::TcpServer(QObject *parent)
+#include "libqt/sync/rwlocker.h"
+
+TcpServer::TcpServer(QThreadPool* pool, QObject *parent)
     : QTcpServer(parent)
+    , m_lock{}
+    , m_conns{}
+    , m_threads{nullptr}
+    , m_rBufSz{1}
+    , m_wBufSz{1}
 {
-    connect(this, SIGNAL(newConnection()), this, SLOT(onNewConnection()));
+    init();
 }
 
-QTcpSocket *TcpServer::nextPendingConnection()
+void TcpServer::init()
 {
-    qDebug() << "new TcpSocket";
-    return new TcpSocket(m_rBufSz, m_wBufSz, this);
+    connect(this, SIGNAL(newConnection()), this, SLOT(onNewConnection()));
+
+    if (m_threads != nullptr)
+    {
+        m_threads->start([this](){ this->loop(); });
+    }
 }
 
 void TcpServer::onNewConnection()
 {
-    TcpSocket* sock = static_cast<TcpSocket*>(nextPendingConnection());
-    connect(sock, SIGNAL(disconnected()), this, SLOT(onSocketDisconnected()));
-    connect(sock, SIGNAL(readed(TcpSocket*)), this, SIGNAL(sockReaded(TcpSocket*)), Qt::QueuedConnection);
-    connect(sock, SIGNAL(writed(TcpSocket*)), this, SIGNAL(sockWrited(TcpSocket*)), Qt::QueuedConnection);
-    m_socks.insert(sock);
-    qDebug() << "on sock conn";
+    WLocker locker{m_lock};
+    auto conn = new TcpConn(QTcpServer::nextPendingConnection(), m_rBufSz, m_wBufSz, this);
+    connect(conn, SIGNAL(readed(TcpConn*)), this, SIGNAL(connReaded(TcpConn*)), Qt::QueuedConnection);
+    connect(conn, SIGNAL(writed(TcpConn*)), this, SIGNAL(connWrited(TcpConn*)), Qt::QueuedConnection);
+    m_conns.insert(conn);
 }
 
 void TcpServer::onSocketDisconnected()
 {
-    qDebug() << "on sock disconn";
-    for (auto sock : m_socks)
+    WLocker locker{m_lock};
+    for (auto conn : m_conns)
     {
-        if (sock->state() == QAbstractSocket::ConnectedState)
+        if (conn->isValid())
             continue;
 
-        disconnect(sock, SIGNAL(disconnected()), this, SLOT(onSocketDisconnected()));
-        disconnect(sock, SIGNAL(readed(TcpSocket*)), this, SIGNAL(sockReaded(TcpSocket*)));
-        disconnect(sock, SIGNAL(writed(TcpSocket*)), this, SIGNAL(sockWrited(TcpSocket*)));
-        m_socks.remove(sock);
+        disconnect(conn, SIGNAL(readed(TcpConn*)), this, SIGNAL(connReaded(TcpConn*)));
+        disconnect(conn, SIGNAL(writed(TcpConn*)), this, SIGNAL(connWrited(TcpConn*)));
+        m_conns.remove(conn);
+    }
+}
+
+void TcpServer::loop()
+{
+    WLocker locker{m_lock};
+    for (auto conn : m_conns)
+    {
+        conn->poll();
     }
 }
