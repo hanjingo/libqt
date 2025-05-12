@@ -25,12 +25,15 @@ set(PROJECT_SOURCES
         ${LIBQT_ROOT}/libqt/net/tcp/ip.cpp
         ${LIBQT_ROOT}/libqt/net/tcp/tcpconn.h
         ${LIBQT_ROOT}/libqt/net/tcp/tcpconn.cpp
+        ${LIBQT_ROOT}/libqt/net/tcp/tcpclient.h
+        ${LIBQT_ROOT}/libqt/net/tcp/tcpclient.cpp
         ${LIBQT_ROOT}/libqt/net/tcp/tcpserver.h
         ${LIBQT_ROOT}/libqt/net/tcp/tcpserver.cpp
         ${LIBQT_ROOT}/libqt/sync/channel.h
         ${LIBQT_ROOT}/libqt/sync/rwlocker.h
         ${LIBQT_ROOT}/libqt/crypto/crc.h
         ${LIBQT_ROOT}/libqt/crypto/crc.cpp
+        ${LIBQT_ROOT}/libqt/core/objpool.h
 )
 
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})

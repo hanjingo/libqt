@@ -17,7 +17,9 @@ public:
             m_sem.acquire(1);
     }
     ~Channel()
-    {}
+    {
+        clear();
+    }
 
     inline Channel& operator>>(T& t) { dequeue(t); return *this; }
     inline Channel& operator<<(const T& t) { enqueue(t); return *this; }
@@ -67,6 +69,8 @@ public:
     }
 
 private:
+    Q_DISABLE_COPY(Channel)
+
     QQueue<T>              m_data;
     QSemaphore             m_sem;
     int                    m_capa;

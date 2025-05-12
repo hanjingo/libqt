@@ -7,7 +7,7 @@
 
 TcpConn::TcpConn(const int rBufSz, const int wBufSz, QObject *parent)
     : m_sock(new QTcpSocket(parent))
-    , m_buf{}
+    , m_chBuf{1}
     , m_chRead{rBufSz}
     , m_chWrite{wBufSz}
     , m_chReadedMsg{rBufSz}
@@ -20,7 +20,7 @@ TcpConn::TcpConn(const int rBufSz, const int wBufSz, QObject *parent)
 
 TcpConn::TcpConn(QTcpSocket* base, const int rBufSz, const int wBufSz, QObject *parent)
     : m_sock(base)
-    , m_buf{}
+    , m_chBuf{1}
     , m_chRead{rBufSz}
     , m_chWrite{wBufSz}
     , m_chReadedMsg{rBufSz}
@@ -40,7 +40,11 @@ TcpConn::~TcpConn()
 
     disconnect(this, SIGNAL(pollEvent()), this, SLOT(onPollEvent()));
 
-    m_buf.close();
+    QBuffer* buf = nullptr;
+    m_chBuf >> buf;
+    buf->close();
+    delete buf;
+
     delete m_sock;
     m_sock = nullptr;
 }
@@ -48,11 +52,14 @@ TcpConn::~TcpConn()
 void TcpConn::init()
 {
     connect(m_sock, SIGNAL(readyRead()), this, SLOT(onReadyRead()), Qt::QueuedConnection);
+    connect(m_sock, SIGNAL(disconnected()), this, SLOT(onDisConnected()));
     connect(m_sock, SIGNAL(stateChanged(QAbstractSocket::SocketState)), this, SLOT(onStateChanged(QAbstractSocket::SocketState)));
     connect(m_sock, SIGNAL(errorOccurred(QAbstractSocket::SocketError)), this, SLOT(onSocketError(QAbstractSocket::SocketError)));
 
     connect(this, SIGNAL(pollEvent()), this, SLOT(onPollEvent()), Qt::QueuedConnection);
-    m_buf.open(QIODevice::ReadWrite);
+    QBuffer* buf = new QBuffer();
+    buf->open(QIODevice::ReadWrite);
+    m_chBuf << buf;
 }
 
 bool TcpConn::connectToHost(const QString& ip, const quint16 port)
@@ -76,6 +83,7 @@ void TcpConn::disconnectFromHost()
 
 void TcpConn::close()
 {
+    m_chBuf.clear();
     m_chRead.clear();
     m_chWrite.clear();
     m_chReadedMsg.clear();
@@ -105,12 +113,19 @@ void TcpConn::read(Message* msg, quint64 ms, quint16 retry)
     quint16 count = 0;
     do {
         ++count;
+        onPollEvent();
     } while(!m_chReadedMsg.tryDequeue(msg, ms) && count <= retry);
 }
 
-void TcpConn::write(Message* msg)
+void TcpConn::write(Message* msg, quint64 ms, quint16 retry)
 {
     m_chPreWriteMsg << msg;
+
+    quint16 count = 0;
+    do {
+        ++count;
+        onPollEvent();
+    } while(!m_chWritedMsg.tryDequeue(msg, ms) && count <= retry);
 }
 
 void TcpConn::read(QByteArray& buf, quint64 ms, quint16 retry)
@@ -121,9 +136,19 @@ void TcpConn::read(QByteArray& buf, quint64 ms, quint16 retry)
     } while(!m_chRead.tryDequeue(buf, ms) && count < retry);
 }
 
-void TcpConn::write(QByteArray& buf)
+void TcpConn::write(QByteArray& buf, quint64 ms, quint16 retry)
 {
     m_chWrite << buf;
+
+    quint16 count = 0;
+    do {
+        ++count;
+        onPollEvent();
+        if (m_chWrite.available() < 1)
+            break;
+
+        QThread::msleep(ms);
+    } while(count <= retry);
 }
 
 void TcpConn::onReadyRead()
@@ -141,7 +166,7 @@ void TcpConn::onReadyRead()
 
 void TcpConn::onSocketError(QAbstractSocket::SocketError err)
 {
-
+    // TODO
 }
 
 void TcpConn::onStateChanged(QAbstractSocket::SocketState stat)
@@ -154,8 +179,13 @@ void TcpConn::onStateChanged(QAbstractSocket::SocketState stat)
     case SocketState::ConnectedState: { poll(); break; }
     case SocketState::BoundState: { break; }
     case SocketState::ListeningState: { break; }
-    case SocketState::ClosingState: { break; }
+    case SocketState::ClosingState: { emit disconnected(this); break; }
     }
+}
+
+void TcpConn::onDisConnected()
+{
+    emit disconnected(this);
 }
 
 void TcpConn::onPollEvent()
@@ -165,6 +195,8 @@ void TcpConn::onPollEvent()
 
     // pre read msg channel
     Message* msg = nullptr;
+    QBuffer* buf = nullptr;
+    m_chBuf >> buf;
     do {
         if (msg == nullptr && !m_chPreReadMsg.tryDequeue(msg))
             break;
@@ -172,27 +204,23 @@ void TcpConn::onPollEvent()
         if (msg == nullptr)
             break;
 
-        if (msg->size() > m_buf.size())
+        if (msg->decode(buf->data()) < 1)
         {
-            QByteArray buf;
-            if (!m_chRead.tryDequeue(buf) || buf.isEmpty())
+            QByteArray data;
+            if (!m_chRead.tryDequeue(data) || data.isEmpty())
             {
-                m_chPreReadMsg << msg; // put back
+                m_chPreReadMsg << msg; // put pre read msg back
                 break;
             }
 
-            m_buf.write(buf);
+            buf->write(data);
             continue;
         }
-
-        QByteArray data = m_buf.read(msg->size());
-        if (msg->decode(data) < 1)
-            break;
 
         m_chReadedMsg << msg;
         msg = nullptr;
     } while(true);
-
+    m_chBuf << buf;
 
     // pre write msg channel
     do {
@@ -201,6 +229,7 @@ void TcpConn::onPollEvent()
             break;
 
         QByteArray data;
+        data.reserve(msg->size());
         msg->encode(data);
         m_chWrite << data;
         m_chWritedMsg << msg;

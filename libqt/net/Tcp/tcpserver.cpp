@@ -29,26 +29,33 @@ void TcpServer::onNewConnection()
     auto conn = new TcpConn(QTcpServer::nextPendingConnection(), m_rBufSz, m_wBufSz, this);
     connect(conn, SIGNAL(readed(TcpConn*)), this, SIGNAL(connReaded(TcpConn*)), Qt::QueuedConnection);
     connect(conn, SIGNAL(writed(TcpConn*)), this, SIGNAL(connWrited(TcpConn*)), Qt::QueuedConnection);
+    connect(conn, SIGNAL(disconnected(TcpConn*)), this, SLOT(onSocketDisconnected(TcpConn*)), Qt::QueuedConnection);
     m_conns.insert(conn);
 }
 
-void TcpServer::onSocketDisconnected()
+void TcpServer::onSocketDisconnected(TcpConn* conn)
 {
     WLocker locker{m_lock};
-    for (auto conn : m_conns)
-    {
-        if (conn->isValid())
-            continue;
+    disconnect(conn, SIGNAL(readed(TcpConn*)), this, SIGNAL(connReaded(TcpConn*)));
+    disconnect(conn, SIGNAL(writed(TcpConn*)), this, SIGNAL(connWrited(TcpConn*)));
+    disconnect(conn, SIGNAL(disconnected(TcpConn*)), this, SLOT(onSocketDisconnected(TcpConn*)));
+    conn->close();
+    m_conns.remove(conn);
 
-        disconnect(conn, SIGNAL(readed(TcpConn*)), this, SIGNAL(connReaded(TcpConn*)));
-        disconnect(conn, SIGNAL(writed(TcpConn*)), this, SIGNAL(connWrited(TcpConn*)));
-        m_conns.remove(conn);
-    }
+    emit connDisconnected(conn);
+}
+
+void TcpServer::range(FnRangeConns fn)
+{
+    RLocker locker{m_lock};
+    for (auto conn : m_conns)
+        if (!fn(conn))
+            break;
 }
 
 void TcpServer::loop()
 {
-    WLocker locker{m_lock};
+    RLocker locker{m_lock};
     for (auto conn : m_conns)
     {
         conn->poll();

@@ -25,11 +25,13 @@ public:
 
     inline bool isValid() { return m_sock->state() == SocketState::ConnectedState; }
     inline void poll() { emit pollEvent(); }
+    inline void asyncRead(Message* msg) { m_chPreReadMsg << msg; }   // recommend
+    inline void asyncWrite(Message* msg) { m_chPreWriteMsg << msg; } // recommend
 
     void read(Message* msg, quint64 ms = 0, quint16 retry = 0);
-    void write(Message* msg);
+    void write(Message* msg, quint64 ms = 0, quint16 retry = 0);
     void read(QByteArray& buf, quint64 ms = 0, quint16 retry = 0);
-    void write(QByteArray& buf);
+    void write(QByteArray& buf, quint64 ms = 0, quint16 retry = 0);
     void init();
     bool connectToHost(const QString& ip, const quint16 port);
     void disconnectFromHost();
@@ -37,6 +39,7 @@ public:
 
 signals:
     void pollEvent();
+    void disconnected(TcpConn*);
     void readed(TcpConn*);
     void writed(TcpConn*);
 
@@ -45,10 +48,13 @@ private slots:
     void onReadyRead();
     void onSocketError(QAbstractSocket::SocketError);
     void onStateChanged(QAbstractSocket::SocketState);
+    void onDisConnected();
 
 private:
+    Q_DISABLE_COPY(TcpConn)
+
     QTcpSocket*         m_sock;
-    QBuffer             m_buf;
+    Channel<QBuffer*>   m_chBuf;
     Channel<QByteArray> m_chRead;
     Channel<QByteArray> m_chWrite;
 

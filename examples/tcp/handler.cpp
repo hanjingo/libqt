@@ -20,25 +20,14 @@ void fromByteArray(QByteArray& buf, T& t)
     stream >> t;
 }
 
-void Handler::bind(TcpServer* serv)
+void SrvHandler::bind(TcpServer* serv)
 {
     m_serv = serv;
     connect(m_serv, SIGNAL(connReaded(TcpConn*)), this, SLOT(onConnReaded(TcpConn*)));
     connect(m_serv, SIGNAL(connWrited(TcpConn*)), this, SLOT(onConnWrited(TcpConn*)));
 }
 
-void Handler::bind(TcpConn* conn)
-{
-    QThreadPool::globalInstance()->start([conn](){
-        while(conn->isValid())
-        {
-            conn->poll();
-            QThread::msleep(100);
-        }
-    });
-}
-
-void Handler::onConnReaded(TcpConn* conn)
+void SrvHandler::onConnReaded(TcpConn* conn)
 {
     static int count = 0;
     count++;
@@ -67,12 +56,36 @@ void Handler::onConnReaded(TcpConn* conn)
     HelloRsp rsp{};
     rsp.result = 1;
     QJsonDocument doc{rsp.toJson()};
-    Message* msgRsp = new MessageV1(CMD_HELLO_RSP, doc.toJson());
+    Message* msgRsp = new MessageV1(doc.toJson());
     qDebug() << "serv conn:" << conn << " send resp Message:" << doc.toJson();
     conn->write(msgRsp);
 }
 
-void Handler::onConnWrited(TcpConn* conn)
+void SrvHandler::onConnWrited(TcpConn* conn)
 {
     qDebug() << "serv onConnWrited";
+}
+
+void CliHandler::bind(TcpClient* cli)
+{
+    m_cli = cli;
+    connect(m_cli, SIGNAL(connReaded(TcpConn*)), this, SLOT(onConnReaded(TcpConn*)));
+    connect(m_cli, SIGNAL(connWrited(TcpConn*)), this, SLOT(onConnWrited(TcpConn*)));
+}
+
+void CliHandler::onConnReaded(TcpConn* conn)
+{
+    qDebug() << "cli onConnReaded";
+
+    MessageV1* msgRsp = new MessageV1();
+    conn->read(msgRsp);
+    QJsonObject rspObj = QJsonDocument::fromJson(msgRsp->payload()).object();
+    HelloReq rsp{};
+    rsp.fromJson(rspObj);
+    qDebug() << "cli conn:" << conn << " recv rsp Message:" << msgRsp->payload();
+}
+
+void CliHandler::onConnWrited(TcpConn* conn)
+{
+    qDebug() << "cli onConnWrited";
 }

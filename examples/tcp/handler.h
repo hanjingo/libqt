@@ -11,14 +11,10 @@
 
 #include <libqt/net/tcp/ip.h>
 #include <libqt/net/tcp/tcpserver.h>
+#include <libqt/net/tcp/tcpclient.h>
 #include <libqt/net/tcp/tcpconn.h>
 
 #include <libqt/net/proto/message_v1.h>
-
-enum cmd {
-    CMD_HELLO_REQ = 0X1,
-    CMD_HELLO_RSP,
-};
 
 template <typename T>
 QByteArray toByteArray(const T& t);
@@ -77,15 +73,14 @@ struct HelloRsp
     }
 };
 
-class Handler : public QObject
+class SrvHandler : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit Handler(QObject *parent = nullptr) {}
+    explicit SrvHandler(QObject *parent = nullptr) {}
 
     void bind(TcpServer* serv);
-    void bind(TcpConn* conn);
 
 private slots:
     void onConnReaded(TcpConn*);
@@ -93,6 +88,23 @@ private slots:
 
 private:
     TcpServer* m_serv;
+};
+
+class CliHandler : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit CliHandler(QObject *parent = nullptr) {}
+
+    void bind(TcpClient* cli);
+
+private slots:
+    void onConnReaded(TcpConn*);
+    void onConnWrited(TcpConn*);
+
+private:
+    TcpClient* m_cli;
 };
 
 #endif
