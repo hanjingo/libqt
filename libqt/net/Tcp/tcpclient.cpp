@@ -1,92 +1,152 @@
 #include "tcpclient.h"
 
-#include "libqt/sync/rwlocker.h"
+#include "libqt/net/handler.h"
 
-TcpClient::TcpClient(QThreadPool* pool, QObject *parent)
-    : m_lock{}
-    , m_conns{}
-    , m_threads{nullptr}
+#include <QTimer>
+#include <QHostAddress>
+
+TcpClient::TcpClient(QThreadPool* pool, int bufSz, QObject *parent)
+    : m_threads{pool}
+    , m_dataBuf{bufSz}
+    , m_msgBuf{bufSz}
 {
-    init();
 }
 
 TcpClient::~TcpClient()
 {
-    WLocker locker{m_lock};
-    for (auto conn : m_conns)
-    {
-        doDel(conn);
-        conn->close();
-    }
 }
 
-TcpConn* TcpClient::dial(const QString& ip, const quint16 port, const int rBufSz, const int wBufSz)
+void TcpClient::dial(const QString& ip, const quint16 port)
 {
-    TcpConn* conn = new TcpConn(rBufSz, wBufSz);
-    if (!conn->connectToHost(ip, port))
-    {
-        conn->close();
-        delete conn;
-        return nullptr;
-    }
+    m_threads->start([this, ip, port](){
+        QEventLoop loop;
+        connect(this, SIGNAL(finish()), &loop, SLOT(quit()));
 
-    return conn;
+        Handler h{QAbstractSocket::TcpSocket, ip, port};
+
+        // socket signal
+        connect(&h, SIGNAL(connected()), this, SIGNAL(connected()), Qt::DirectConnection);
+        connect(&h, SIGNAL(stateChanged(QAbstractSocket::SocketState)),
+                this, SLOT(onStateChanged(QAbstractSocket::SocketState)), Qt::DirectConnection);
+
+        // Way1: TcpClient ,--> Handler
+        connect(this, SIGNAL(produceBytes(QByteArray)), &h, SLOT(consumeBytes(QByteArray)), Qt::DirectConnection);
+        connect(&h, SIGNAL(produceBytes(QByteArray)), this, SLOT(consumeBytes(QByteArray)), Qt::DirectConnection);
+
+        loop.exec();
+        qDebug() << "handler loop end";
+    });
 }
 
-void TcpClient::range(FnRangeConns fn)
+void TcpClient::dial(const QString& ip, const quint16 port, const int ms)
 {
-    RLocker locker{m_lock};
-    for (auto conn : m_conns)
-        if (!fn(conn))
-            break;
+    dial(ip, port);
+
+    QEventLoop loop;
+    QTimer timer;
+
+    timer.setSingleShot(true);
+    QObject::connect(&timer, SIGNAL(timeout()), this, SIGNAL(finish()));
+    QObject::connect(&timer, SIGNAL(timeout()), &loop, SLOT(quit()));
+
+    QObject::connect(this, SIGNAL(connected()), &loop, SLOT(quit()));
+    QObject::connect(this, SIGNAL(connected()), &timer, SLOT(stop()));
+
+    timer.start(ms);
+    loop.exec();
 }
 
-void TcpClient::add(TcpConn* conn)
+void TcpClient::dial(const QString& ip, const quint16 port, const Codec::FnMsgFactory fn)
 {
-    WLocker locker{m_lock};
-    connect(conn, SIGNAL(readed(TcpConn*)), this, SIGNAL(connReaded(TcpConn*)), Qt::QueuedConnection);
-    connect(conn, SIGNAL(writed(TcpConn*)), this, SIGNAL(connWrited(TcpConn*)), Qt::QueuedConnection);
-    connect(conn, SIGNAL(disconnected(TcpConn*)), this, SLOT(onSocketDisconnected(TcpConn*)), Qt::QueuedConnection);
-    m_conns.insert(conn);
+    m_threads->start([this, ip, port, fn](){
+        QEventLoop loop;
+        connect(this, SIGNAL(finish()), &loop, SLOT(quit()));
+
+        Handler h{QAbstractSocket::TcpSocket, ip, port};
+        Codec codec{fn};
+
+        // socket signal
+        connect(&h, SIGNAL(connected()), this, SIGNAL(connected()), Qt::DirectConnection);
+        connect(&h, SIGNAL(stateChanged(QAbstractSocket::SocketState)),
+                this, SLOT(onStateChanged(QAbstractSocket::SocketState)), Qt::DirectConnection);
+
+        // Way2: TcpClient <--> Codec <--> Handler
+        connect(this, SIGNAL(produceMsg(Message*)), &codec, SLOT(consumeMsg(Message*)), Qt::DirectConnection);
+        connect(&codec, SIGNAL(produceBytes(QByteArray)), &h, SLOT(consumeBytes(QByteArray)), Qt::DirectConnection);
+
+        connect(&h, SIGNAL(produceBytes(QByteArray)), &codec, SLOT(consumeBytes(QByteArray)), Qt::DirectConnection);
+        connect(&codec, SIGNAL(produceMsg(Message*)), this, SLOT(consumeMsg(Message*)), Qt::DirectConnection);
+
+        loop.exec();
+        qDebug() << "handler loop end";
+    });
 }
 
-void TcpClient::del(TcpConn* conn)
+void TcpClient::dial(const QString& ip, const quint16 port, const int ms, const Codec::FnMsgFactory fn)
 {
-    WLocker locker{m_lock};
-    doDel(conn);
+    dial(ip, port, fn);
+
+    QEventLoop loop;
+    QTimer timer;
+
+    timer.setSingleShot(true);
+    QObject::connect(&timer, SIGNAL(timeout()), this, SIGNAL(finish()));
+    QObject::connect(&timer, SIGNAL(timeout()), &loop, SLOT(quit()));
+
+    QObject::connect(this, SIGNAL(connected()), &loop, SLOT(quit()));
+    QObject::connect(this, SIGNAL(connected()), &timer, SLOT(stop()));
+
+    timer.start(ms);
+    loop.exec();
 }
 
-void TcpClient::clear()
+void TcpClient::write(const QByteArray& data)
 {
-    WLocker locker{m_lock};
-    for (auto conn : m_conns)
-        doDel(conn);
+    emit this->produceBytes(data);
 }
 
-void TcpClient::loop()
+bool TcpClient::read(QByteArray& data)
 {
-    RLocker locker{m_lock};
-    for (auto conn : m_conns)
-        conn->poll();
+    return m_dataBuf.tryDequeue(data);
 }
 
-void TcpClient::init()
+bool TcpClient::read(QByteArray& data, int ms)
 {
-    if (m_threads != nullptr)
-        m_threads->start([this](){ this->loop(); });
+    return m_dataBuf.tryDequeue(data, ms);
 }
 
-void TcpClient::doDel(TcpConn* conn)
+void TcpClient::writeMsg(Message* msg)
 {
-    disconnect(conn, SIGNAL(readed(TcpConn*)), this, SIGNAL(connReaded(TcpConn*)));
-    disconnect(conn, SIGNAL(writed(TcpConn*)), this, SIGNAL(connWrited(TcpConn*)));
-    disconnect(conn, SIGNAL(disconnected(TcpConn*)), this, SLOT(onSocketDisconnected(TcpConn*)));
-    conn->close();
-    m_conns.remove(conn);
+    emit this->produceMsg(msg);
 }
 
-void TcpClient::onSocketDisconnected(TcpConn* conn)
+Message* TcpClient::readMsg()
 {
-    del(conn);
-    emit connDisconnected(conn);
+    Message* msg = nullptr;
+    m_msgBuf.tryDequeue(msg);
+    return msg;
+}
+
+Message* TcpClient::readMsg(int ms)
+{
+    Message* msg = nullptr;
+    m_msgBuf.tryDequeue(msg, ms);
+    return msg;
+}
+
+void TcpClient::consumeBytes(QByteArray data)
+{
+    qDebug() << "TcpClient::consumeBytes " << data;
+    m_dataBuf << data;
+}
+
+void TcpClient::consumeMsg(Message* msg)
+{
+    qDebug() << "TcpClient::consumeMsg " << msg;
+    m_msgBuf << msg;
+}
+
+void TcpClient::onStateChanged(QAbstractSocket::SocketState state)
+{
+    m_state = state;
 }

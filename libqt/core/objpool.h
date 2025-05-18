@@ -20,7 +20,7 @@ public:
     {}
 
     inline ObjPool& operator>>(Obj& obj) { obj = acquire(); return *this; }
-    inline ObjPool& operator<<(const Obj& obj) { giveback(obj); return *this; }
+    inline ObjPool& operator<<(const Obj&& obj) { giveback(std::move(obj)); return *this; }
     inline int size() { return m_sem.available(); }
     inline int capa() { return m_capa; }
 

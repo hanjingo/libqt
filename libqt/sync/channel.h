@@ -10,7 +10,8 @@ template <typename T>
 class Channel
 {
 public:
-    Channel(const int sz = 1) : m_data{}, m_sem{sz}, m_capa{sz}
+    Channel(const int sz = 1)
+        : m_data{}, m_sem{sz}, m_capa{sz}
     {
         m_data.reserve(sz);
         for (auto i = 0; i < sz; ++i)
@@ -26,21 +27,25 @@ public:
     inline int available() { return m_sem.available(); }
     inline int capa() { return m_capa; }
 
-    bool enqueue(const T& t)
+    inline void enqueue(const T& t)
     {
         m_sem.release(1);
         m_data.enqueue(t);
-        return true;
     }
 
-    bool dequeue(T& t)
+    inline void enqueue(T&& t)
+    {
+        m_sem.release(1);
+        m_data.enqueue(std::move(t));
+    }
+
+    inline void dequeue(T& t)
     {
         m_sem.acquire(1);
         t = m_data.dequeue();
-        return true;
     }
 
-    bool tryDequeue(T& t)
+    inline bool tryDequeue(T& t)
     {
         if (!m_sem.tryAcquire(1))
             return false;
@@ -49,7 +54,7 @@ public:
         return true;
     }
 
-    bool tryDequeue(T& t, const int ms)
+    inline bool tryDequeue(T& t, const int ms)
     {
         if (!m_sem.tryAcquire(1, ms))
             return false;
@@ -58,14 +63,10 @@ public:
         return true;
     }
 
-    void clear()
+    inline void clear()
     {
-        for (int i = 0; i < m_capa; ++i)
-        {
-            if (!m_sem.tryAcquire(1))
-                return;
-            m_data.dequeue();
-        }
+        T t;
+        while(tryDequeue(t)){}
     }
 
 private:

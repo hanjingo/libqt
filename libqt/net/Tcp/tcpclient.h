@@ -3,56 +3,68 @@
 
 #include <functional>
 
+#include <QHash>
 #include <QObject>
-#include <QString>
+#include <QTcpSocket>
 #include <QThreadPool>
-#include <QReadWriteLock>
+#include <QEventLoop>
 
-#include "libqt/core/objpool.h"
-#include "libqt/net/tcp/tcpconn.h"
+#include "libqt/sync/channel.h"
 #include "libqt/net/proto/message.h"
-#include "libqt/net/proto/message_V1.h"
+#include "libqt/net/codec.h"
 
 class TcpClient : public QObject
 {
     Q_OBJECT
-public:
-    using FnRangeConns = std::function<bool(TcpConn*)>;
-    using FnMsgFilt = std::function<bool(Message*)>;
 
 public:
-    explicit TcpClient(QThreadPool* pool = nullptr, QObject *parent = nullptr);
+    explicit TcpClient(QThreadPool* pool = QThreadPool::globalInstance(),
+                       int bufSz = 1024,
+                       QObject *parent = nullptr);
     ~TcpClient();
 
-    static TcpConn* dial(const QString& ip,
-                         const quint16 port,
-                         const int rBufSz = 1,
-                         const int wBufSz = 1);
+    inline QAbstractSocket::SocketState state() { return m_state; }
 
-    void range(FnRangeConns fn);
-    void add(TcpConn*);
-    void del(TcpConn*);
-    void clear();
-    void loop();
+    void dial(const QString& ip,
+              const quint16 port);
+    void dial(const QString& ip,
+              const quint16 port,
+              const int ms);
+    void dial(const QString& ip,
+              const quint16 port,
+              const Codec::FnMsgFactory fn);
+    void dial(const QString& ip,
+              const quint16 port,
+              const int ms,
+              const Codec::FnMsgFactory fn);
+    void write(const QByteArray& data);
+    bool read(QByteArray& data);
+    bool read(QByteArray& data, int ms);
 
-private:
-    void init();
-    void doDel(TcpConn* conn);
+    void writeMsg(Message* msg);
+    Message* readMsg();
+    Message* readMsg(int ms);
+
+    void close() { emit this->finish(); }
 
 signals:
-    void connDisconnected(TcpConn*);
-    void connReaded(TcpConn*);
-    void connWrited(TcpConn*);
+    void connected();
+    void produceBytes(QByteArray);
+    void produceMsg(Message*);
+    void finish();
 
 private slots:
-    void onSocketDisconnected(TcpConn*);
+    void consumeBytes(QByteArray);
+    void consumeMsg(Message*);
+    void onStateChanged(QAbstractSocket::SocketState);
 
 private:
     Q_DISABLE_COPY(TcpClient)
 
-    QReadWriteLock        m_lock;
-    QSet<TcpConn*>        m_conns;
-    QThreadPool*          m_threads;
+    QThreadPool*                 m_threads;
+    Channel<QByteArray>          m_dataBuf;
+    Channel<Message*>            m_msgBuf;
+    QAbstractSocket::SocketState m_state;
 };
 
 #endif
