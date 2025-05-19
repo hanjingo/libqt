@@ -10,7 +10,7 @@
 #include <libqt/net/tcp/ip.h>
 #include <libqt/net/tcp/tcpclient.h>
 #include <libqt/sync/dispatcher.h>
-#include <libqt/net/handler.h>
+#include <libqt/net/nethandler.h>
 
 #include <libqt/net/proto/message.h>
 #include <libqt/net/proto/message_v1.h>

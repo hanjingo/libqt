@@ -1,6 +1,6 @@
 #include "tcpclient.h"
 
-#include "libqt/net/handler.h"
+#include "libqt/net/nethandler.h"
 
 #include <QTimer>
 #include <QHostAddress>
@@ -22,14 +22,14 @@ void TcpClient::dial(const QString& ip, const quint16 port)
         QEventLoop loop;
         connect(this, SIGNAL(finish()), &loop, SLOT(quit()));
 
-        Handler h{QAbstractSocket::TcpSocket, ip, port};
+        NetHandler h{QAbstractSocket::TcpSocket, ip, port};
 
         // socket signal
         connect(&h, SIGNAL(connected()), this, SIGNAL(connected()), Qt::DirectConnection);
         connect(&h, SIGNAL(stateChanged(QAbstractSocket::SocketState)),
                 this, SLOT(onStateChanged(QAbstractSocket::SocketState)), Qt::DirectConnection);
 
-        // Way1: TcpClient ,--> Handler
+        // Way1: TcpClient ,--> NetHandler
         connect(this, SIGNAL(produceBytes(QByteArray)), &h, SLOT(consumeBytes(QByteArray)), Qt::DirectConnection);
         connect(&h, SIGNAL(produceBytes(QByteArray)), this, SLOT(consumeBytes(QByteArray)), Qt::DirectConnection);
 
@@ -62,7 +62,7 @@ void TcpClient::dial(const QString& ip, const quint16 port, const Codec::FnMsgFa
         QEventLoop loop;
         connect(this, SIGNAL(finish()), &loop, SLOT(quit()));
 
-        Handler h{QAbstractSocket::TcpSocket, ip, port};
+        NetHandler h{QAbstractSocket::TcpSocket, ip, port};
         Codec codec{fn};
 
         // socket signal
@@ -70,7 +70,7 @@ void TcpClient::dial(const QString& ip, const quint16 port, const Codec::FnMsgFa
         connect(&h, SIGNAL(stateChanged(QAbstractSocket::SocketState)),
                 this, SLOT(onStateChanged(QAbstractSocket::SocketState)), Qt::DirectConnection);
 
-        // Way2: TcpClient <--> Codec <--> Handler
+        // Way2: TcpClient <--> Codec <--> NetHandler
         connect(this, SIGNAL(produceMsg(Message*)), &codec, SLOT(consumeMsg(Message*)), Qt::DirectConnection);
         connect(&codec, SIGNAL(produceBytes(QByteArray)), &h, SLOT(consumeBytes(QByteArray)), Qt::DirectConnection);
 

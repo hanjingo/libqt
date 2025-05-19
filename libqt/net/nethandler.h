@@ -1,19 +1,19 @@
-#ifndef HANDLER_H
-#define HANDLER_H
+#ifndef NET_HANDLER_H
+#define NET_HANDLER_H
 
 #include <QObject>
 #include <QAbstractSocket>
 
-class Handler : public QObject
+class NetHandler : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit Handler(const QAbstractSocket::SocketType typ,
-                     const QString& ip,
-                     const quint16 port,
-                     QObject *parent = nullptr);
-    ~Handler();
+    explicit NetHandler(const QAbstractSocket::SocketType typ,
+                        const QString& ip,
+                        const quint16 port,
+                        QObject *parent = nullptr);
+    ~NetHandler();
 
 signals:
     void connected();

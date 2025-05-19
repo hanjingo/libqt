@@ -1,11 +1,11 @@
-#include "handler.h"
+#include "nethandler.h"
 
 #include <QHostAddress>
 
-Handler::Handler(const QAbstractSocket::SocketType typ,
-                 const QString& host,
-                 const quint16 port,
-                 QObject *parent)
+NetHandler::NetHandler(const QAbstractSocket::SocketType typ,
+                       const QString& host,
+                       const quint16 port,
+                       QObject *parent)
     : m_sock{new QAbstractSocket(typ, parent)}
 {
     connect(m_sock, SIGNAL(connected()), this, SLOT(onConnected()), Qt::DirectConnection);
@@ -18,7 +18,7 @@ Handler::Handler(const QAbstractSocket::SocketType typ,
     m_sock->connectToHost(QHostAddress(host), port);
 }
 
-Handler::~Handler()
+NetHandler::~NetHandler()
 {
     if (m_sock != nullptr)
     {
@@ -37,16 +37,16 @@ Handler::~Handler()
 }
 
 // ----------------------------- socket signal --------------------------------
-void Handler::onHostFound()
+void NetHandler::onHostFound()
 {
 }
 
-void Handler::onConnected()
+void NetHandler::onConnected()
 {
     emit this->connected();
 }
 
-void Handler::onDisconnected()
+void NetHandler::onDisconnected()
 {
     // do reconnect
     QHostAddress ip = m_sock->peerAddress();
@@ -54,35 +54,35 @@ void Handler::onDisconnected()
     m_sock->connectToHost(ip, port);
 }
 
-void Handler::onReadyRead()
+void NetHandler::onReadyRead()
 {
     auto data = m_sock->readAll();
     emit produceBytes(data);
 }
 
-void Handler::onStateChanged(QAbstractSocket::SocketState state)
+void NetHandler::onStateChanged(QAbstractSocket::SocketState state)
 {
     emit stateChanged(state);
 }
 
-void Handler::onError(QAbstractSocket::SocketError)
+void NetHandler::onError(QAbstractSocket::SocketError)
 {
     qDebug() << "onError";
 }
 
-void Handler::onErrorOccurred(QAbstractSocket::SocketError)
+void NetHandler::onErrorOccurred(QAbstractSocket::SocketError)
 {
     qDebug() << "onErrorOccurred";
 }
 
-void Handler::onProxyAuthenticationRequired(const QNetworkProxy &proxy, QAuthenticator *authenticator)
+void NetHandler::onProxyAuthenticationRequired(const QNetworkProxy &proxy, QAuthenticator *authenticator)
 {
     qDebug() << "onProxyAuthenticationRequired";
 }
 
 // ------------------------- user defined slot --------------------------
 
-void Handler::consumeBytes(QByteArray data)
+void NetHandler::consumeBytes(QByteArray data)
 {
     m_sock->write(data);
     m_sock->flush();

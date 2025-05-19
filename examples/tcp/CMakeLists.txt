@@ -17,8 +17,8 @@ include_directories(${LIBQT_ROOT})
 
 set(PROJECT_SOURCES
         main.cpp
-        ${LIBQT_ROOT}/libqt/net/handler.h
-        ${LIBQT_ROOT}/libqt/net/handler.cpp
+        ${LIBQT_ROOT}/libqt/net/nethandler.h
+        ${LIBQT_ROOT}/libqt/net/nethandler.cpp
         ${LIBQT_ROOT}/libqt/net/codec.h
         ${LIBQT_ROOT}/libqt/net/codec.cpp
         ${LIBQT_ROOT}/libqt/net/proto/message.h
