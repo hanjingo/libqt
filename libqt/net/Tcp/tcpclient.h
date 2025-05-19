@@ -24,6 +24,7 @@ public:
     ~TcpClient();
 
     inline QAbstractSocket::SocketState state() { return m_state; }
+    inline bool isConnected() { return m_state == QAbstractSocket::ConnectedState; }
 
     void dial(const QString& ip,
               const quint16 port);
@@ -48,7 +49,11 @@ public:
     void close() { emit this->finish(); }
 
 signals:
+    // signal for user
     void connected();
+    void readyRead();
+
+    // signal for internal
     void produceBytes(QByteArray);
     void produceMsg(Message*);
     void finish();

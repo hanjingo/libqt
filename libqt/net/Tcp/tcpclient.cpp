@@ -138,12 +138,16 @@ void TcpClient::consumeBytes(QByteArray data)
 {
     qDebug() << "TcpClient::consumeBytes " << data;
     m_dataBuf << data;
+
+    emit this->readyRead();
 }
 
 void TcpClient::consumeMsg(Message* msg)
 {
     qDebug() << "TcpClient::consumeMsg " << msg;
     m_msgBuf << msg;
+
+    emit this->readyRead();
 }
 
 void TcpClient::onStateChanged(QAbstractSocket::SocketState state)
