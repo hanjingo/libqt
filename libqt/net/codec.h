@@ -8,8 +8,8 @@
 
 #include "libqt/net/proto/message.h"
 
-#ifndef MTU 1024
-#define MTU 1024
+#ifndef MTU
+#define MTU 1500
 #endif
 
 class Codec : public QObject

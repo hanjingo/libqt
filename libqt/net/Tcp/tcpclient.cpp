@@ -9,11 +9,13 @@ TcpClient::TcpClient(QThreadPool* pool, int bufSz, QObject *parent)
     : m_threads{pool}
     , m_dataBuf{bufSz}
     , m_msgBuf{bufSz}
+    , m_state{QAbstractSocket::UnconnectedState}
 {
 }
 
 TcpClient::~TcpClient()
 {
+    m_msgBuf.clear();
 }
 
 void TcpClient::dial(const QString& ip, const quint16 port)
@@ -25,7 +27,9 @@ void TcpClient::dial(const QString& ip, const quint16 port)
         NetHandler h{QAbstractSocket::TcpSocket, ip, port};
 
         // socket signal
+        connect(this, SIGNAL(finish()), &h, SLOT(quit()));
         connect(&h, SIGNAL(connected()), this, SIGNAL(connected()), Qt::DirectConnection);
+        connect(&h, SIGNAL(disconnected()), this, SIGNAL(disconnected()), Qt::DirectConnection);
         connect(&h, SIGNAL(stateChanged(QAbstractSocket::SocketState)),
                 this, SLOT(onStateChanged(QAbstractSocket::SocketState)), Qt::DirectConnection);
 
@@ -66,7 +70,9 @@ void TcpClient::dial(const QString& ip, const quint16 port, const Codec::FnMsgFa
         Codec codec{fn};
 
         // socket signal
+        connect(this, SIGNAL(finish()), &h, SLOT(quit()));
         connect(&h, SIGNAL(connected()), this, SIGNAL(connected()), Qt::DirectConnection);
+        connect(&h, SIGNAL(disconnected()), this, SIGNAL(disconnected()), Qt::DirectConnection);
         connect(&h, SIGNAL(stateChanged(QAbstractSocket::SocketState)),
                 this, SLOT(onStateChanged(QAbstractSocket::SocketState)), Qt::DirectConnection);
 
@@ -134,6 +140,24 @@ Message* TcpClient::readMsg(int ms)
     return msg;
 }
 
+void TcpClient::close(int ms)
+{
+    emit this->finish();
+
+    QEventLoop loop;
+    QTimer timer;
+
+    timer.setSingleShot(true);
+    QObject::connect(&timer, SIGNAL(timeout()), &loop, SLOT(quit()));
+
+    QObject::connect(this, SIGNAL(disconnected()), &loop, SLOT(quit()));
+    QObject::connect(this, SIGNAL(disconnected()), &timer, SLOT(stop()));
+
+    timer.start(ms);
+    loop.exec();
+    qDebug() << "close end";
+}
+
 void TcpClient::consumeBytes(QByteArray data)
 {
     qDebug() << "TcpClient::consumeBytes " << data;
@@ -152,5 +176,6 @@ void TcpClient::consumeMsg(Message* msg)
 
 void TcpClient::onStateChanged(QAbstractSocket::SocketState state)
 {
+    qDebug() << "onStateChanged " << state;
     m_state = state;
 }

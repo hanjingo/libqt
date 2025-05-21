@@ -5,8 +5,10 @@
 NetHandler::NetHandler(const QAbstractSocket::SocketType typ,
                        const QString& host,
                        const quint16 port,
+                       bool reconnect,
                        QObject *parent)
     : m_sock{new QAbstractSocket(typ, parent)}
+    , m_breconnect{reconnect}
 {
     connect(m_sock, SIGNAL(connected()), this, SLOT(onConnected()), Qt::DirectConnection);
     connect(m_sock, SIGNAL(disconnected()), this, SLOT(onDisconnected()), Qt::DirectConnection);
@@ -22,8 +24,8 @@ NetHandler::~NetHandler()
 {
     if (m_sock != nullptr)
     {
-        m_sock->waitForBytesWritten(100);
-        m_sock->deleteLater();
+        if (m_sock->state() == QAbstractSocket::ConnectedState)
+            m_sock->waitForBytesWritten(100);
 
         disconnect(m_sock, SIGNAL(connected()), this, SLOT(onConnected()));
         disconnect(m_sock, SIGNAL(disconnected()), this, SLOT(onDisconnected()));
@@ -31,8 +33,7 @@ NetHandler::~NetHandler()
                    this, SLOT(onStateChanged(QAbstractSocket::SocketState)));
         disconnect(m_sock, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
 
-        delete m_sock;
-        m_sock = nullptr;
+        m_sock->deleteLater();
     }
 }
 
@@ -49,9 +50,14 @@ void NetHandler::onConnected()
 void NetHandler::onDisconnected()
 {
     // do reconnect
-    QHostAddress ip = m_sock->peerAddress();
-    quint16 port = m_sock->peerPort();
-    m_sock->connectToHost(ip, port);
+    if (m_breconnect)
+    {
+        QHostAddress ip = m_sock->peerAddress();
+        quint16 port = m_sock->peerPort();
+        m_sock->connectToHost(ip, port);
+    }
+
+    emit this->disconnected();
 }
 
 void NetHandler::onReadyRead()
@@ -86,4 +92,11 @@ void NetHandler::consumeBytes(QByteArray data)
 {
     m_sock->write(data);
     m_sock->flush();
+}
+
+void NetHandler::quit()
+{
+    qDebug() << "quit tcp socket";
+    if (m_sock != nullptr)
+        m_sock->disconnectFromHost();
 }

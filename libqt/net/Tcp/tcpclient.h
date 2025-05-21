@@ -46,11 +46,12 @@ public:
     Message* readMsg();
     Message* readMsg(int ms);
 
-    void close() { emit this->finish(); }
+    void close(int ms = 1000);
 
 signals:
     // signal for user
     void connected();
+    void disconnected();
     void readyRead();
 
     // signal for internal

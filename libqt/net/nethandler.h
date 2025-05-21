@@ -12,17 +12,20 @@ public:
     explicit NetHandler(const QAbstractSocket::SocketType typ,
                         const QString& ip,
                         const quint16 port,
+                        bool reconnecte = false,
                         QObject *parent = nullptr);
     ~NetHandler();
 
 signals:
     void connected();
+    void disconnected();
     void produceBytes(QByteArray);
     void stateChanged(QAbstractSocket::SocketState);
 
 public slots:
     // usr signal handler
     void consumeBytes(QByteArray);
+    void quit();
 
 protected slots:
     // sockets signal handler
@@ -37,6 +40,7 @@ protected slots:
 
 private:
     QAbstractSocket* m_sock;
+    bool             m_breconnect;
 };
 
 #endif
