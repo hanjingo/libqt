@@ -16,4 +16,12 @@ add_definitions(-DLIBQT_VERSION_MAJOR="${LIBQT_VERSION_MAJOR}")
 add_definitions(-DLIBQT_VERSION_MINOR="${LIBQT_VERSION_MINOR}")
 add_definitions(-DLIBQT_VERSION_PATCH="${LIBQT_VERSION_PATCH}")
 
+# utf-8 enable
+add_compile_options(
+    /source-charset:utf-8 
+    /execution-charset:utf-8)
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rd)
+
 add_subdirectory(examples)
+

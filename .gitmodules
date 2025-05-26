@@ -1,4 +1,1 @@
-[submodule "3rd/breakpad"]
-	path = 3rd/breakpad
-	url = git@github.com:google/breakpad.git
-	branch = main
+

@@ -17,7 +17,7 @@ include_directories(${LIBQT_ROOT})
 
 set(PROJECT_SOURCES
         main.cpp
-        ${LIBQT_ROOT}/libqt/core/defer.h
+        ${LIBQT_ROOT}/libqt/util/defer.h
 )
 
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
