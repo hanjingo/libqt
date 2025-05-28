@@ -10,7 +10,7 @@ set(LIBQT_VERSION ${LIBQT_VERSION_MAJOR}.${LIBQT_VERSION_MINOR}.${LIBQT_VERSION_
 set(PACKAGE_NAME      "${PROJECT_NAME}")
 set(PACKAGE_VERSION   "${LIBQT_VERSION}")
 set(PACKAGE_TARNAME   "${PACKAGE_NAME}-${PACKAGE_VERSION}")
-set(PACKAGE_BUGREPORT "https://github.com/hanjingo/livermore-qt/issues")
+set(PACKAGE_BUGREPORT "https://github.com/hanjingo/libqt/issues")
 
 add_definitions(-DLIBQT_VERSION_MAJOR="${LIBQT_VERSION_MAJOR}")
 add_definitions(-DLIBQT_VERSION_MINOR="${LIBQT_VERSION_MINOR}")
