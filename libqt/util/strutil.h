@@ -1,5 +1,5 @@
-#ifndef CRASH_H
-#define CRASH_H
+#ifndef STRUTIL_H
+#define STRUTIL_H
 
 #include <QtGlobal>
 #include <QString>

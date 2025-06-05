@@ -52,15 +52,22 @@ compile_commands.json
 # QtCreator local machine specific files for imported projects
 *creator.user*
 
-# Visual Studio
-.vs
-out
-CMakePresets.json
-CMakeUserPresets.json
-
-*_qmlcache.qrc
-
+# cmake
 build
 bin
+bins
 lib
+libs
+install
+
+# vcpkg
+out
+
+# Visual Studio
+.vs
+CMakePresets.json
+CMakeUserPresets.json
+*_qmlcache.qrc
+
+# Visual Studio Code
 .vscode

@@ -1,0 +1,16 @@
+{
+  "dependencies": [
+    "spdlog",
+    "breakpad"
+  ],
+  "overrides": [
+    {
+      "name": "spdlog",
+      "version": "1.15.3"
+    },
+    {
+      "name": "breakpad",
+      "version": "2024-02-16"
+    }
+  ]
+}
