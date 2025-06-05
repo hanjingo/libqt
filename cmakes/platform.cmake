@@ -1,4 +1,4 @@
-function(detect_triplet OUT_VAR)
+function(detect_triplet_platform OUT_VAR)
     if(CMAKE_SIZEOF_VOID_P EQUAL 8)
         set(_ARCH "x64")
     elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)

@@ -1,0 +1,4 @@
+@PACKAGE_INIT@
+include("${CMAKE_CURRENT_LIST_DIR}/libqtTargets.cmake")
+set(libqt_INCLUDE_DIR "@PACKAGE_INCLUDE_INSTALL_DIR@")
+check_required_components(libqt)

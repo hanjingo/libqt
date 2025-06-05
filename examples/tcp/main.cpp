@@ -83,44 +83,46 @@ int main(int argc, char *argv[])
     QCoreApplication a(argc, argv);
     qDebug() << "tcp client-server example";
 
-   //  QTcpServer srv1{};
-   //  QObject::connect(&srv1, &QTcpServer::newConnection, [&srv1](){
-   //      auto conn = srv1.nextPendingConnection();
-   //      QObject::connect(conn, &QTcpSocket::readyRead, [conn](){
-   //          auto data = conn->readAll();
-   //          qDebug() << "srv read data:" << data;
+    qDebug() << "tcp socket bytearray example";
+    QTcpServer srv1{};
+    QObject::connect(&srv1, &QTcpServer::newConnection, [&srv1](){
+        auto conn = srv1.nextPendingConnection();
+        QObject::connect(conn, &QTcpSocket::readyRead, [conn](){
+            auto data = conn->readAll();
+            qDebug() << "srv read data:" << data;
 
-   //          conn->write(toByteArray(QString("world")));
-   //          conn->flush();
-   //      });
-   //  });
-   //  srv1.listen(QHostAddress::Any, 10086);
+            conn->write(toByteArray(QString("world")));
+            conn->flush();
+        });
+    });
+    srv1.listen(QHostAddress::Any, 10086);
 
-   // // TcpClient read write byte data
-   //  QtConcurrent::run([](){
-   //      auto cli1 = new TcpClient();
-   //      cli1->dial("127.0.0.1", 10086, 100);
+   // TcpClient read write byte data
+    QtConcurrent::run([](){
+        auto cli1 = new TcpClient();
+        cli1->dial("127.0.0.1", 10086, 100);
 
-   //      if (cli1->state() != QAbstractSocket::ConnectedState)
-   //      {
-   //          qDebug() << "Fail to dail 127.0.0.1:10086";
-   //          return;
-   //      } else {
-   //          qDebug() << "Dial 127.0.0.1:10086 succ";
-   //      }
+        if (cli1->state() != QAbstractSocket::ConnectedState)
+        {
+            qDebug() << "Fail to dail 127.0.0.1:10086";
+            return;
+        } else {
+            qDebug() << "Dial 127.0.0.1:10086 succ";
+        }
 
-   //      cli1->write(toByteArray(QString("hello")));
+        cli1->write(toByteArray(QString("hello")));
 
-   //      QByteArray data;
-   //      cli1->read(data, 100);
-   //      qDebug() << "cli1 read data:" << data;
+        QByteArray data;
+        cli1->read(data, 100);
+        qDebug() << "cli1 read data:" << data;
 
-   //      QEventLoop loop;
-   //      loop.exec();
-   //  });
+        QEventLoop loop;
+        loop.exec();
+    });
 
 
     // use message protocol
+    qDebug() << "tcp socket protocol example";
     QtConcurrent::run([](){
         QTcpServer srv2{};
         QObject::connect(&srv2, &QTcpServer::newConnection, [&srv2](){

@@ -2,9 +2,6 @@ project(crash LANGUAGES CXX)
 
 set(LIBQT_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 
-set(BREAKPAD_PATH "${LIBQT_ROOT}/3rd/breakpad")
-include(${LIBQT_ROOT}/cmakes/breakpad.cmake)
-
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
@@ -28,6 +25,7 @@ endif()
 find_package(Threads REQUIRED)
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
+find_package(unofficial-breakpad REQUIRED)
 
 include_directories(${LIBQT_ROOT})
 
@@ -41,4 +39,20 @@ add_executable(${PROJECT_NAME} ${PROJECT_SOURCES} ${BREAKPAD_SOURCES})
 target_link_libraries(${PROJECT_NAME} PUBLIC
     Qt${QT_VERSION_MAJOR}::Core
     Threads::Threads
+
+    unofficial::breakpad::libbreakpad # for unofficial breakpad cmake config
+    unofficial::breakpad::libbreakpad_client # for unofficial breakpad-client cmake config
 )
+
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+    message("install to ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}")
+
+    install(TARGETS ${PROJECT_NAME}
+        DESTINATION "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}"
+    )
+
+    if(WIN32)
+        include(${LIBQT_ROOT}/cmakes/deployqt.cmake)
+        windeployqt(${PROJECT_NAME} ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY})
+    endif()
+endif()

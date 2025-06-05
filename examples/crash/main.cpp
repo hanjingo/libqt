@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
     qDebug() << "crash example";
 
     // CrashHandler::preventSetUnhandledExceptionFilter();
-    CrashHandler::instance()->setLocalPath(QCoreApplication::applicationDirPath().toStdString());
+    CrashHandler::instance()->setLocalPath(QCoreApplication::applicationDirPath());
 
     int* p = new int(1);
     p = nullptr;
