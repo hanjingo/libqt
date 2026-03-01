@@ -25,7 +25,7 @@
 #endif
 
 class Logger;
-void logHandleMsg(QtMsgType typ, const QMessageLogContext& ctx, const QString& str);
+static void logHandleMsg(QtMsgType typ, const QMessageLogContext& ctx, const QString& str);
 
 enum LogLvl {
     LOG_LVL_TRACE = 0,

@@ -46,7 +46,7 @@ void MyGrid::paintEvent(QPaintEvent *event)
     QString str;
     for(int i = 0; i <= getHGridNum(); ++i)
     {
-        str.sprintf("%d", (int)(i * ystep) );
+        str = QString::number(static_cast<int>(i * ystep));
         painter.drawText( QPoint(getWidgetWidth() - getMarginLeft() + 10,
                                 getWidgetHeight() - getMarginBottom() - i * getAtomGridHeight()),
                          str);

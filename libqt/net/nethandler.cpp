@@ -1,6 +1,8 @@
 #include "nethandler.h"
 
+#include <QDebug>
 #include <QHostAddress>
+#include <QVariant>
 
 NetHandler::NetHandler(const QAbstractSocket::SocketType typ,
                        const QString& host,
