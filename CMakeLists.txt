@@ -25,6 +25,11 @@ add_definitions(-DLIBQT_VERSION_MAJOR="${LIBQT_VERSION_MAJOR}")
 add_definitions(-DLIBQT_VERSION_MINOR="${LIBQT_VERSION_MINOR}")
 add_definitions(-DLIBQT_VERSION_PATCH="${LIBQT_VERSION_PATCH}")
 
+# head direction
+list(APPEND PROJECT_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
+
+set(PROJECT_INCLUDE_DIRS "${PROJECT_INCLUDE_DIRS}" PARENT_SCOPE)
+
 # build example
 if(BUILD_EXAMPLE)
      add_subdirectory(examples)
