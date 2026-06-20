@@ -22,19 +22,63 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-find_package(Qt5Core REQUIRED)
+# Find Qt in a version-agnostic way (prefer Qt6, fall back to Qt5).
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
 
 # Retrieve the absolute path to qmake and then use that path to find
-# the windeployqt and macdeployqt binaries
-get_target_property(_qmake_executable Qt5::qmake IMPORTED_LOCATION)
-get_filename_component(_qt_bin_dir "${_qmake_executable}" DIRECTORY)
+# the windeployqt and macdeployqt binaries.
+if(TARGET Qt${QT_VERSION_MAJOR}::qmake)
+    get_target_property(_qmake_executable Qt${QT_VERSION_MAJOR}::qmake IMPORTED_LOCATION)
+endif()
 
-find_program(WINDEPLOYQT_EXECUTABLE windeployqt HINTS "${_qt_bin_dir}")
+if(NOT _qmake_executable)
+    # Fallback: infer Qt's bin directory from the Core library location.
+    get_target_property(_qt_core_location Qt${QT_VERSION_MAJOR}::Core IMPORTED_LOCATION)
+    if(_qt_core_location)
+        get_filename_component(_qt_lib_dir "${_qt_core_location}" DIRECTORY)
+        get_filename_component(_qt_prefix_dir "${_qt_lib_dir}" DIRECTORY)
+        find_program(_qmake_executable NAMES qmake qmake6 HINTS "${_qt_prefix_dir}/bin")
+    endif()
+endif()
+
+if(_qmake_executable)
+    get_filename_component(_qt_bin_dir "${_qmake_executable}" DIRECTORY)
+endif()
+
+if(_qt_bin_dir)
+    find_program(WINDEPLOYQT_EXECUTABLE NAMES windeployqt HINTS "${_qt_bin_dir}")
+else()
+    find_program(WINDEPLOYQT_EXECUTABLE NAMES windeployqt)
+endif()
 if(WIN32 AND NOT WINDEPLOYQT_EXECUTABLE)
     message(FATAL_ERROR "windeployqt not found")
 endif()
 
-find_program(MACDEPLOYQT_EXECUTABLE macdeployqt HINTS "${_qt_bin_dir}")
+set(_windeployqt_optional_args)
+if(WIN32 AND WINDEPLOYQT_EXECUTABLE)
+    execute_process(
+        COMMAND "${WINDEPLOYQT_EXECUTABLE}" --help
+        OUTPUT_VARIABLE _windeployqt_help
+        ERROR_VARIABLE _windeployqt_help_err
+        RESULT_VARIABLE _windeployqt_help_result
+    )
+
+    if(_windeployqt_help_result EQUAL 0)
+        if(_windeployqt_help MATCHES "--no-angle")
+            list(APPEND _windeployqt_optional_args --no-angle)
+        endif()
+        if(_windeployqt_help MATCHES "--no-opengl-sw")
+            list(APPEND _windeployqt_optional_args --no-opengl-sw)
+        endif()
+    endif()
+endif()
+
+if(_qt_bin_dir)
+    find_program(MACDEPLOYQT_EXECUTABLE NAMES macdeployqt HINTS "${_qt_bin_dir}")
+else()
+    find_program(MACDEPLOYQT_EXECUTABLE NAMES macdeployqt)
+endif()
 if(APPLE AND NOT MACDEPLOYQT_EXECUTABLE)
     message(FATAL_ERROR "macdeployqt not found")
 endif()
@@ -49,8 +93,7 @@ function(windeployqt target)
             env PATH="${_qt_bin_dir}" "${WINDEPLOYQT_EXECUTABLE}"
                 --verbose 0
                 --no-compiler-runtime
-                --no-angle
-                --no-opengl-sw
+                ${_windeployqt_optional_args}
                 \"$<TARGET_FILE:${target}>\"
         COMMENT "Deploying Qt..."
     )
