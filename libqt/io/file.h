@@ -11,6 +11,18 @@
 #include <QCryptographicHash>
 #include <QDirIterator>
 
+#ifdef Q_OS_WIN
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
+#include <windows.h>
+#endif // windows
+
 class File : public QFile
 {
   public:
@@ -67,6 +79,70 @@ class File : public QFile
             return "";
 
         return hash.result().toHex();
+    }
+
+    static bool createIfNotExists(const QString &filePath)
+    {
+        QFile file(filePath);
+        if(file.exists())
+            return true;
+
+        return file.open(QIODevice::WriteOnly);
+    }
+
+    static bool removeIfExists(const QString &filePath, bool force = true)
+    {
+        QFileInfo info(filePath);
+        if(!info.exists())
+            return true;
+
+        // for dir
+        if(info.isDir())
+        {
+            QDir dir(filePath);
+            return dir.removeRecursively();
+        }
+
+        // for file
+        QFile file(filePath);
+        if(force)
+        {
+            file.setPermissions(QFile::ReadOwner | QFile::WriteOwner
+                                | QFile::ReadUser | QFile::WriteUser
+                                | QFile::ReadGroup | QFile::WriteGroup
+                                | QFile::ReadOther | QFile::WriteOther);
+
+            if(file.remove())
+                return true;
+
+            if(file.moveToTrash())
+                return true;
+
+#ifdef Q_OS_WIN
+            // On Windows, if the file is in use, we can try to rename it to a temporary name and then delete it later.
+            QString      nativePath = QDir::toNativeSeparators(filePath);
+            std::wstring wPath      = nativePath.toStdWString();
+
+            QString tmpPath =
+                filePath + "."
+                + QUuid::createUuid().toString(QUuid::WithoutBraces)
+                + ".deleted";
+            std::wstring wTmpPath =
+                QDir::toNativeSeparators(tmpPath).toStdWString();
+
+            if(MoveFileExW(wPath.c_str(),
+                           wTmpPath.c_str(),
+                           MOVEFILE_REPLACE_EXISTING))
+            {
+                MoveFileExW(wTmpPath.c_str(),
+                            NULL,
+                            MOVEFILE_DELAY_UNTIL_REBOOT);
+                return true;
+            }
+#endif
+        }
+
+        return file.remove();
     }
 
     static void walk(const QString                        &filePath,
