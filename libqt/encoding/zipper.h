@@ -3,6 +3,7 @@
 
 #include <QtGlobal>
 #include <QtCore/private/qzipreader_p.h>
+#include <QtCore/private/qzipwriter_p.h>
 
 #include <QDir>
 #include <QDebug>
@@ -11,16 +12,63 @@ class Zipper : public QObject
 {
     Q_OBJECT
   public:
-    explicit Zipper(const QString &zipFilePath, QObject *parent = nullptr)
+    explicit Zipper(QObject *parent = nullptr)
         : QObject(parent)
-        , _reader(zipFilePath)
     {
     }
-    ~Zipper() override { _reader.close(); }
+    ~Zipper() = default;
 
-    bool UnZip(const QString &destDir)
+    bool zip(const QString &destFile, const QStringList &srcFiles)
     {
-        if(!_reader.isReadable())
+        QZipWriter writer(destFile);
+        if(writer.status() != QZipWriter::NoError)
+        {
+            emit SignalZipFinished(false, destFile);
+            return false;
+        }
+
+        writer.setCompressionPolicy(QZipWriter::AutoCompress);
+        for(const QString &filePath : srcFiles)
+        {
+            QFileInfo fileInfo(filePath);
+            if(!fileInfo.exists())
+            {
+                emit SignalZipFinished(false, destFile);
+                return false;
+            }
+
+            if(fileInfo.isDir())
+            {
+                if(!addDirectory(writer, filePath, fileInfo.fileName()))
+                {
+                    emit SignalZipFinished(false, destFile);
+                    return false;
+                }
+            } else
+            {
+                if(!addFile(writer, filePath, fileInfo.fileName()))
+                {
+                    emit SignalZipFinished(false, destFile);
+                    return false;
+                }
+            }
+        }
+
+        writer.close();
+        if(writer.status() != QZipWriter::NoError)
+        {
+            emit SignalZipFinished(false, destFile);
+            return false;
+        }
+
+        emit SignalZipFinished(true, destFile);
+        return true;
+    }
+
+    bool unZip(const QString &destDir, const QString &zipFile)
+    {
+        QZipReader reader(zipFile);
+        if(!reader.isReadable())
         {
             emit SignalUnZipFinished(false, destDir);
             return false;
@@ -30,7 +78,7 @@ class Zipper : public QObject
         if(!dir.exists())
             dir.mkpath(destDir);
 
-        if(!_reader.extractAll(destDir))
+        if(!reader.extractAll(destDir))
         {
             emit SignalUnZipFinished(false, destDir);
             return false;
@@ -41,10 +89,53 @@ class Zipper : public QObject
     }
 
   signals:
+    void SignalZipFinished(bool success, const QString &destFile);
     void SignalUnZipFinished(bool success, const QString &destDir);
 
   private:
-    QZipReader _reader;
+    bool addFile(QZipWriter    &writer,
+                 const QString &filePath,
+                 const QString &fileNameInZip)
+    {
+        QFile file(filePath);
+        if(!file.open(QIODevice::ReadOnly))
+        {
+            qWarning() << "Cannot open file:" << filePath;
+            return false;
+        }
+
+        QByteArray data = file.readAll();
+        file.close();
+
+        writer.addFile(fileNameInZip, data);
+        return true;
+    }
+
+    bool addDirectory(QZipWriter    &writer,
+                      const QString &dirPath,
+                      const QString &dirNameInZip)
+    {
+        QDir dir(dirPath);
+        writer.addDirectory(dirNameInZip);
+        QFileInfoList entries =
+            dir.entryInfoList(QDir::NoDotAndDotDot | QDir::Files | QDir::Dirs);
+        for(const QFileInfo &entry : entries)
+        {
+            QString entryPath      = entry.absoluteFilePath();
+            QString entryNameInZip = dirNameInZip + "/" + entry.fileName();
+            if(entry.isDir())
+            {
+                if(!addDirectory(writer, entryPath, entryNameInZip))
+                    return false;
+            } else
+            {
+                if(!addFile(writer, entryPath, entryNameInZip))
+                    return false;
+            }
+        }
+
+        return true;
+    }
 };
 
 #endif // ZIPPER_H
